@@ -27,6 +27,7 @@ species bees skills: [moving]{
 	bool lone_bee <- false;
 	bool satisfied <- false;
 	int pollen_charge <- 0;
+	float energie <- 1000.0 min: 0.0;
 	
 	aspect cercle {
 		if(self.lone_bee) { draw circle(6) color: #red border: #black;} 
@@ -43,10 +44,13 @@ species bees skills: [moving]{
 		else {
 			do wander;
 		}
+	}
+	reflex mourir when: energie = 0{
+		do die;
 	}	
-	reflex buttine when: fp.qtt_pollen > 0{
+	reflex buttine when: fp != nil {
 		ask fp {
-			self.qtt_pollen <- self.qtt_pollen-1;
+			qtt_pollen <- qtt_pollen-1;
 		}
 	}
 		
