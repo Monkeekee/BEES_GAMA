@@ -13,7 +13,7 @@ model lesabeilles
 /* Insert your model definition here */
 
 species flower {
-	int qtt_pollen <- 300;
+	int qtt_pollen <- 300 min: 0;
 	aspect cercle {
 		draw circle(30) color: #blue border: #black;
 	}
@@ -32,15 +32,27 @@ species bees skills: [moving]{
 		if(self.lone_bee) { draw circle(6) color: #red border: #black;} 
         else {draw circle(5) color: #yellow border: #black;}
 	}
+	list<flower> flower_at_sight <- flower at_distance dist_percep update: flower at_distance dist_percep;
+	
+	flower fp <- flower at_distance 20.0 closest_to self update: flower at_distance 20.0 closest_to self;
 	
 	reflex basic_move {
-		//do goto target: any_location_in(world.shape);
-	    do wander;
+		if (cycle > 3000 and !empty(flower_at_sight)){
+			do goto target: one_of(flower_at_sight);
+		}
+		else {
+			do wander;
+		}
+	}	
+	reflex buttine when: fp.qtt_pollen > 0{
+		ask fp {
+			self.qtt_pollen <- self.qtt_pollen-1;
+		}
 	}
-	reflex move_to_flower when: cycle > 500{
-			do goto target: (one_of(flower));
 		
-	}
+		//do goto target: any_location_in(world.shape);
+	    
+	
 	
 	init {
 		
@@ -67,7 +79,7 @@ global {
 	int nb_flower_init <- 10;
 	geometry shape <- square(1000#m); //changer la taille de la simulation, 100x100 de base
 	point middle <- {500,500};
-	float dist_percep <- 50.0; //p*
+	float dist_percep <- 500.0; //p*
 	bool is_gui <- true;
 	int nb_cycle_f <- 0 update: cycle;
 	
