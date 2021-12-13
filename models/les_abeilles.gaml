@@ -54,7 +54,7 @@ species bees skills: [moving]{
 	
 	reflex rentrer when: (charge_pollen = 3 or energie < 100.0) {
 			do goto target: ruche closest_to self;
-			if length(ruche at_distance 20.0) = 1 {
+			if length(ruche at_distance 50.0) = 1 {
 				energie <- 1000.0;
 				charge_pollen <- 0;
 			}
@@ -136,6 +136,15 @@ experiment exp1 type: gui {
 			//pas oublier l'aspect
 		}
 		monitor "Nb happy " value: nb_bees_friendly; //fenetre non display, cas particulier
+		monitor "charge moyenne" value: mean (bees collect (each.charge_pollen));
+		monitor "energie moyenne" value: mean (bees collect (each.energie));
+	
+		//display Comparion {
+		//	chart "nb cycle " type: series{
+		//		data "energie moyenne" value: mean (bees collect (each.energie));
+		//	
+		//	}
+		//}
 
 		
 	}
