@@ -27,7 +27,9 @@ species bees skills: [moving]{
 	bool lone_bee <- false;
 	bool satisfied <- false;
 	int pollen_charge <- 0;
-	float energie <- 1000.0 min: 0.0;
+	float moving_cost <-0.5;
+	float energie <- 1000.0 min: 0.0 update: energie - moving_cost;
+	int charge_pollen <- 0 min: 0 max: 3;
 	
 	aspect cercle {
 		if(self.lone_bee) { draw circle(6) color: #red border: #black;} 
@@ -37,21 +39,34 @@ species bees skills: [moving]{
 	
 	flower fp <- flower at_distance 20.0 closest_to self update: flower at_distance 20.0 closest_to self;
 	
+	
+
 	reflex basic_move {
-		if (cycle > 3000 and !empty(flower_at_sight)){
+		
+		if (cycle > 2000 and !empty(flower_at_sight)){
 			do goto target: one_of(flower_at_sight);
 		}
 		else {
 			do wander;
 		}
 	}
+	
+	
+	reflex rentrer when: (charge_pollen = 3 or energie < 100.0) {
+			do goto target: ruche closest_to self;
+			if length(ruche at_distance dist_percep) = 0 {
+				energie <- 1000.0;
+				charge_pollen <- 0;
+			}
+	}
 	reflex mourir when: energie = 0{
 		do die;
 	}	
-	reflex buttine when: fp != nil {
+	reflex buttine when: fp != nil and pollen_charge < 3 {
 		ask fp {
 			qtt_pollen <- qtt_pollen-1;
 		}
+		pollen_charge <- pollen_charge + 1;
 	}
 		
 		//do goto target: any_location_in(world.shape);
