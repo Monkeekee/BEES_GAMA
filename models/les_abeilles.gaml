@@ -54,7 +54,7 @@ species bees skills: [moving]{
 	
 	reflex rentrer when: (charge_pollen = 3 or energie < 100.0) {
 			do goto target: ruche closest_to self;
-			if length(ruche at_distance dist_percep) = 0 {
+			if length(ruche at_distance 20.0) = 1 {
 				energie <- 1000.0;
 				charge_pollen <- 0;
 			}
@@ -98,7 +98,7 @@ global {
 	int nb_flower_init <- 10;
 	geometry shape <- square(1000#m); //changer la taille de la simulation, 100x100 de base
 	point middle <- {500,500};
-	float dist_percep <- 500.0; //p*
+	float dist_percep <- 100.0; //p*
 	bool is_gui <- true;
 	int nb_cycle_f <- 0 update: cycle;
 	
