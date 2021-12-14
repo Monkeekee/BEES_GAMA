@@ -13,9 +13,17 @@ model lesabeilles
 /* Insert your model definition here */
 
 species flower {
+	image_file icon <- image_file("../images/flower.png") ;
 	int qtt_pollen <- 300 min: 0;
 	aspect cercle {
 		draw circle(30) color: #blue border: #black;
+		draw string(qtt_pollen) color: #white size: 2; 
+	}
+	aspect icon {
+		draw icon size: 100;
+	}
+	reflex when: qtt_pollen = 0{
+		do die;
 	}
 }
 
@@ -24,52 +32,69 @@ species pelouse {
 }
 
 species bees skills: [moving]{
+
 	bool lone_bee <- false;
 	bool satisfied <- false;
-	int pollen_charge <- 0;
-	float moving_cost <-0.5;
+	float moving_cost <-0.1;
 	float energie <- 1000.0 min: 0.0 update: energie - moving_cost;
-	int charge_pollen <- 0 min: 0 max: 3;
+	int max_pollen <- 3 max: 50;
+	int charge_pollen <- 0 min: 0 max: max_pollen;
+	image_file icon <- image_file("../images/bee.png") ;
+	
 	
 	aspect cercle {
 		if(self.lone_bee) { draw circle(6) color: #red border: #black;} 
         else {draw circle(5) color: #yellow border: #black;}
 	}
+	
+	
+	aspect icon {
+		draw icon size: 50;
+	}
+	
 	list<flower> flower_at_sight <- flower at_distance dist_percep update: flower at_distance dist_percep;
 	
-	flower fp <- flower at_distance 20.0 closest_to self update: flower at_distance 20.0 closest_to self;
+	flower fp <- flower at_distance dist_percep closest_to self update: flower at_distance dist_percep closest_to self;
 	
 	
 
 	reflex basic_move {
 		
-		if (cycle > 2000 and !empty(flower_at_sight)){
-			do goto target: one_of(flower_at_sight);
+		if (cycle > 2000 and !empty(flower_at_sight) and charge_pollen != max_pollen){
+			do goto target: fp;
 		}
 		else {
-			do wander;
+			do wander amplitude: 30.0;
 		}
 	}
-	
-	
-	reflex rentrer when: (charge_pollen = 3 or energie < 100.0) {
-			do goto target: ruche closest_to self;
-			if length(ruche at_distance 50.0) = 1 {
-				energie <- 1000.0;
-				charge_pollen <- 0;
-			}
-	}
-	reflex mourir when: energie = 0{
-		do die;
-	}	
-	reflex buttine when: fp != nil and pollen_charge < 3 {
+	reflex buttine when: fp != nil and charge_pollen < max_pollen and (flower_at_sight at_distance 0.5) {
 		ask fp {
 			qtt_pollen <- qtt_pollen-1;
 		}
-		pollen_charge <- pollen_charge + 1;
+		charge_pollen <- charge_pollen + 1;
 	}
+	
+	reflex rentrer when: (charge_pollen = max_pollen or energie < 100.0) {
+			do goto target: ruche closest_to self;
+			if !empty(ruche at_distance 0.5) {
+				charge_pollen <- 0;
+				ruche a <- ruche closest_to self;
+				
+				a.qtt_pollen <- a.qtt_pollen + 3;
+				if (a.qtt_miel > 0 and energie < 100){
+					a.qtt_miel <- a.qtt_miel - 1;
+					energie <- energie + qtt_energie_miel;
+	
+					}
+				
+			}	
+	}
+	
+	reflex mourir when: energie = 0{
+		do die;
+	}	
+	
 		
-		//do goto target: any_location_in(world.shape);
 	    
 	
 	
@@ -79,12 +104,27 @@ species bees skills: [moving]{
 
 }
 species ruche {
+	int required_pollen_to_honey <- 6;
+	int qtt_miel <- 10 min:0 ;
+	int qtt_pollen;
+	image_file icon <- image_file("../images/ruche.png") ;
 	
 	aspect carre {
 		draw square(100) color: #brown;
+		draw string(qtt_miel) color: #white;
+	}
+	
+	aspect joli {
+		draw icon size: 200;
+		draw string(qtt_miel) color: #black;
 	}
 	init{
 		location <- middle;
+	}
+	
+	reflex transfo_miel when: qtt_pollen > required_pollen_to_honey{
+		qtt_miel <- qtt_miel + 1;
+		qtt_pollen <- qtt_pollen - required_pollen_to_honey;
 	}
 }
 
@@ -95,6 +135,10 @@ species apiculteur {
 
 
 global {
+	
+	
+	
+	int qtt_energie_miel <- 500;
 	int nb_flower_init <- 10;
 	geometry shape <- square(1000#m); //changer la taille de la simulation, 100x100 de base
 	point middle <- {500,500};
@@ -102,14 +146,26 @@ global {
 	bool is_gui <- true;
 	int nb_cycle_f <- 0 update: cycle;
 	
-	int nb_bees_friendly <- 200; //p*
+	int nb_bees_friendly <- 20; //p*
 	float neighboors_dist <- 5 #m; 
 
 	
 	init {
-		create flower number: nb_flower_init;
-		create bees number: nb_bees_friendly;
+		
 		create ruche;
+		create flower number: nb_flower_init {
+			//if (myself.location.x - one_of(ruche).location.x < 10 and myself.location[1] - ruche[0].location[1] < 10){
+				//set location <- myself.location; //+ {300.0,300.0};
+			//}
+			set location <- middle + {rnd (100,500)*rnd(-1,1,2), rnd(100,500)*rnd(-1,1,2)};
+}
+			
+		
+ 	
+		create bees number: nb_bees_friendly;
+		
+		
+
 		create apiculteur;
 		/* je crée 2000 people à l'init du monde */
 		/* create a une facette number pour le nombre de people a creer */
@@ -125,17 +181,22 @@ global {
 experiment exp1 type: gui {
 	//inputs : params
 	//outputs : affichage, displays
+	parameter "energie obtenue par le miel" var: qtt_energie_miel category:"Bees";
+	parameter "distance de perception des abeilles" var: dist_percep category: "Bees" ;
+	parameter "nb abeilles" var: nb_bees_friendly category: "Bees" ;
+	parameter "nombre de fleurs" var: nb_flower_init category: "Flowers" ;	
 
-
-	
 	output {
 		display map {
-			species bees aspect: cercle;
-			species ruche aspect: carre;
-			species flower aspect: cercle;
+	
+			species ruche aspect: joli;
+			species flower aspect: icon;
+			species bees aspect: icon;
 			//pas oublier l'aspect
 		}
-		monitor "Nb happy " value: nb_bees_friendly; //fenetre non display, cas particulier
+		monitor "Nb bees alive" value: length(bees); //fenetre non display, cas particulier
+		monitor "Qtt de pollen dans les fleurs" value: sum (flower collect each.qtt_pollen);
+		monitor "Qtt de pollen à la ruche" value: sum (ruche collect each.qtt_pollen);
 		monitor "charge moyenne" value: mean (bees collect (each.charge_pollen));
 		monitor "energie moyenne" value: mean (bees collect (each.energie));
 	
