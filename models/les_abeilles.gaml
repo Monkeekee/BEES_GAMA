@@ -14,7 +14,7 @@ model lesabeilles
 
 species flower {
 	image_file icon <- image_file("../images/flower.png") ;
-	int qtt_pollen <- 300 min: 0;
+	int qtt_pollen <- reserve_max min: 0;
 	aspect cercle {
 		draw circle(30) color: #blue border: #black;
 		draw string(qtt_pollen) color: #white size: 2; 
@@ -33,11 +33,10 @@ species pelouse {
 }
 
 species bees skills: [moving]{
+	int duree_danse <- rnd(300,500);
 	int timer_dance <- 0;
-	bool dance_au_retour <-false;
 	bool lone_bee <- false;
-	point bonplan <- nil;
-	point destiDanse <- nil;
+	flower bonplan <- nil;
 	bool satisfied <- false;
 	float moving_cost <-0.1;
 	float energie <- rnd(500.0,1000.0) min: 0.0 update: energie - moving_cost;
@@ -58,59 +57,67 @@ species bees skills: [moving]{
 	flower fp <- flower at_distance dist_percep closest_to self update: flower at_distance dist_percep closest_to self;
 	
 	list<bees> bees_at_sight <- bees at_distance dist_percep update: bees at_distance dist_percep;
+	int nb_voisines <- length(bees_at_sight) update: length(bees_at_sight);
 	
-	list<bees> voisine_dansantes <- bees_at_sight where (bonplan != nil);
+	list<bees> voisine_dansantes <- bees_at_sight where (each.timer_dance >0 ) update: bees_at_sight where (each.timer_dance >0);
+	int nb_vd <-  length(voisine_dansantes) update: length(voisine_dansantes);
 
-	reflex basic_move when: charge_pollen < max_pollen and energie > seuil_energie{
+	
+	/*reflex chercheDanse when: destiDanse = nil and charge_pollen < max_pollen and energie > seuil_energie{
+		if !empty(voisine_dansantes) { //maj de destidanse
+				destiDanse <- {600,600};
+				//destiDanse <- ;
+				do goto target: (destiDanse);
+			}
+	}*/
+	reflex basic_move when: charge_pollen < max_pollen and energie > seuil_energie {
 		
-		if (destiDanse != nil){
-			do goto target: (destiDanse);
+		//si j'ai une voisine qui danse je recup son plan
+		if (!empty(voisine_dansantes) and self.bonplan = nil) {
+				self.bonplan <- voisine_dansantes[0].bonplan;
+			}
+		
+		if ( !empty(flower_at_sight) ){ //je vais a une fleur dans mon champs de vison
+			self.bonplan <- nil;
+			do goto target: fp;
+		}
+		else{
+			do wander amplitude: 30.0;
 		}
 		
-		
-			
-			
-		
-		else {
-			if ( !empty(flower_at_sight) and charge_pollen != max_pollen){
-				do goto target: fp;
-			}
-			else{
-				if !empty(voisine_dansantes) {
-				destiDanse <- (voisine_dansantes closest_to self).bonplan;
-				}
-				do wander amplitude: 30.0;
-			}
+		if (self.bonplan != nil) {
+			do goto target: self.bonplan;
 		}
+		
 	}
-	reflex buttine when: fp != nil and charge_pollen < max_pollen and (flower_at_sight at_distance 0.5) {
+	reflex buttine when: fp != nil and charge_pollen < max_pollen and (flower_at_sight at_distance 0.5) { //je buttine la fleur su laquelle je suis
+
 		fp.qtt_pollen <- fp.qtt_pollen-1;
 
 		charge_pollen <- charge_pollen + 1;
-		
-		if (fp.qtt_pollen > 270) {
-			dance_au_retour <- true;
-			if (fp != nil ){
-			bonplan <-fp.location;
-			}	
+
+		if (fp.qtt_pollen > 0.8 * reserve_max) { //bonplan detecté
+			bonplan <-fp;
+			timer_dance <- duree_danse;
+		}
+		else {bonplan <- nil;
 		}
 	}
 	
 	reflex rentrer when: (charge_pollen = max_pollen or energie < seuil_energie) {
+			//destiDanse <- nil;
 			ruche r <- ruche[0];
 			//point previous <- fp.location;
 			//int charge_fp <- fp.qtt_pollen;
 				
-			do goto target: r;
+			do goto target: r; //aller à la ruche
 			
-			if !empty(ruche at_distance 0.5) {
-				if (dance_au_retour){
-					timer_dance <- timer_dance +1;
+			if !empty(ruche at_distance 0.5) { //des que je suis proche de la ruche en y rentrant
+				if (timer_dance > 0){
+					timer_dance <- timer_dance - 1;
 					location <- middle;
-					if (timer_dance = 1000){
-						dance_au_retour <- false;
-						timer_dance <- 0;
-						bonplan <- nil;
+					if (timer_dance = 0){
+							self.bonplan <- nil;
 					}
 				}
 				
@@ -128,17 +135,10 @@ species bees skills: [moving]{
 				
 				}
 				
+			}
 			
-				
-			}	
 	}
-	reflex dance when: dance_au_retour{
-		
-			//do wander amplitude:0.01 speed: 0.01;
-			
 
-
-	}
 	reflex mourir when: energie = 0{
 		do die;
 	}	
@@ -201,7 +201,7 @@ global {
 	
 	int nb_bees_friendly <- 20; //p*
 	float neighboors_dist <- 5 #m; 
-
+	int reserve_max <- 300 min: 300;
 	
 	init {
 		
