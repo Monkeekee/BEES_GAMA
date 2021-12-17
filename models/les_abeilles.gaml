@@ -33,6 +33,8 @@ species pelouse {
 }
 
 species bees skills: [moving]{
+	
+	
 	int duree_danse <- rnd(300,500);
 	int timer_dance <- 0;
 	bool lone_bee <- false;
@@ -63,13 +65,7 @@ species bees skills: [moving]{
 	int nb_vd <-  length(voisine_dansantes) update: length(voisine_dansantes);
 
 	
-	/*reflex chercheDanse when: destiDanse = nil and charge_pollen < max_pollen and energie > seuil_energie{
-		if !empty(voisine_dansantes) { //maj de destidanse
-				destiDanse <- {600,600};
-				//destiDanse <- ;
-				do goto target: (destiDanse);
-			}
-	}*/
+
 	reflex basic_move when: charge_pollen < max_pollen and energie > seuil_energie {
 		
 		//si j'ai une voisine qui danse je recup son plan
@@ -96,7 +92,7 @@ species bees skills: [moving]{
 
 		charge_pollen <- charge_pollen + 1;
 
-		if (fp.qtt_pollen > 0.8 * reserve_max) { //bonplan detecté
+		if (fp.qtt_pollen > prop_bonplan * reserve_max) { //bonplan detecté
 			bonplan <-fp;
 			timer_dance <- duree_danse;
 		}
@@ -105,10 +101,8 @@ species bees skills: [moving]{
 	}
 	
 	reflex rentrer when: (charge_pollen = max_pollen or energie < seuil_energie) {
-			//destiDanse <- nil;
+
 			ruche r <- ruche[0];
-			//point previous <- fp.location;
-			//int charge_fp <- fp.qtt_pollen;
 				
 			do goto target: r; //aller à la ruche
 			
@@ -143,36 +137,49 @@ species bees skills: [moving]{
 		do die;
 	}	
 	
-		
-	    
-	
-	
-	init {
-		
-	}
-
 }
 
 
 
 
 species ruche {
+	int revenu <- 0;
 	int required_pollen_to_honey <- 6;
+	int chrono <- 0 update: chrono +1;
 	int qtt_miel <- 10 min:0 ;
 	int qtt_pollen;
 	image_file icon <- image_file("../images/ruche.png") ;
 	
-	aspect carre {
-		draw square(100) color: #brown;
-		draw string(qtt_miel) color: #white;
+	aspect carre { //aspect qui consomme le moins de CPU
+		draw square(100) color: #lightgrey;
+		draw string("Miel") color: #black at: self.location + {100.0,10.0};
+		draw string(qtt_miel) color: #black at: self.location + {100.0,30.0};
+		draw string("Revenu") color: #darkgreen at: self.location + {100.0,50.0};
+		draw string(revenu) color: #darkgreen at: self.location + {100.0,70.0};
 	}
 	
 	aspect joli {
 		draw icon size: 200;
-		draw string(qtt_miel) color: #black;
+		draw string("Miel") color: #black at: self.location + {100.0,10.0};
+		draw string(qtt_miel) color: #black at: self.location + {100.0,30.0};
+		draw string("Revenu") color: #darkgreen at: self.location + {100.0,50.0};
+		draw string(revenu) color: #darkgreen at: self.location + {100.0,70.0};
+		draw string("Timer") color: #brown at: self.location + {100.0,90.0};
+		draw string(chrono) color: #brown at: self.location + {100.0,110.0};
+		
 	}
 	init{
 		location <- middle;
+	}
+	
+	
+	reflex transfo_argent when: chrono = recolte_every{
+		if (qtt_miel > seuil_recolte){
+			revenu <- revenu + qtt_miel-seuil_recolte;
+			qtt_miel <- seuil_recolte;
+		}
+		chrono <- 0;
+		
 	}
 	
 	reflex transfo_miel when: qtt_pollen > required_pollen_to_honey{
@@ -181,15 +188,14 @@ species ruche {
 	}
 }
 
-species apiculteur {
 
-}
 
 
 
 global {
-	
-	
+	float prop_bonplan <- 0.8;
+	int seuil_recolte <- 10;
+	int recolte_every <- 4000;
 	int seuil_energie <- 200;
 	int qtt_energie_miel <- 500;
 	int nb_flower_init <- 10;
@@ -217,28 +223,25 @@ global {
  	
 		create bees number: nb_bees_friendly;
 		
-		
-
-		create apiculteur;
-		/* je crée 2000 people à l'init du monde */
-		/* create a une facette number pour le nombre de people a creer */
 	}
-	reflex arret when: (is_gui and nb_bees_friendly = 0) {
-		do pause; //do sert à appeler des action predef comme pause, die, etc ou on peut les definir : action xxx
+	reflex arret when: (is_gui and length(bees) = 0) {
+		do pause; 
 	}
-	//is batch
-	
 	
 	
 }
-experiment exp1 type: gui {
+experiment GUI type: gui {
+
 	//inputs : params
 	//outputs : affichage, displays
-	//image_file background <- image_file("../images/pelouse.png") ;
-	parameter "energie obtenue par le miel" var: qtt_energie_miel category:"Bees";
-	parameter "distance de perception des abeilles" var: dist_percep category: "Bees" ;
-	parameter "nb abeilles" var: nb_bees_friendly category: "Bees" ;
-	parameter "nombre de fleurs" var: nb_flower_init category: "Flowers" ;	
+
+	parameter "L'apiculteur recolte le miel tous les :" var: recolte_every among: [500, 1000, 1500, 2000, 4000, 8000] category:"Ruche";
+	parameter "Miel laissé par récolte :" var: seuil_recolte among: [0, 10, 15, 30] category:"Ruche";
+	parameter "Energie obtenue par le miel :" var: qtt_energie_miel category:"Abeilles" among: [400, 500, 700, 1000];
+	parameter "Distance de perception des abeilles :" var: dist_percep category: "Abeilles" min: 50.0 max: 300.0;
+	parameter "Nombre d'abeilles :" var: nb_bees_friendly category: "Abeilles" min:5 max: 30;
+	parameter "Nombre de fleurs :" var: nb_flower_init category: "Fleurs" among: [5,10,20,40];
+	parameter "Proportion de remplissage pour avoir un bon plan" var: prop_bonplan category: "Abeilles" min: 0.5 max: 0.9 step: 0.05;
 
 	output {
 		display map background: #lightgreen{
@@ -246,24 +249,96 @@ experiment exp1 type: gui {
 			species ruche aspect: joli;
 			species flower aspect: icon;
 			species bees aspect: icon;
+
+		}
+		monitor "Nombre d'abeilles en vie" value: length(bees) refresh: every(100 #cycles); //fenetre non display, cas particulier
+		monitor "Qtt de pollen dans les fleurs" value: sum (flower collect each.qtt_pollen) refresh: every(1000 #cycles) ;
+		monitor "Charge de pollen moyenne par abeille" value: mean (bees collect (each.charge_pollen)) refresh: every(1000 #cycles);
+		monitor "Energie moyenne des abeilles" value: mean (bees collect (each.energie)) refresh: every(1000 #cycles);
+	}
+}
+
+experiment GUI_low_cpu type: gui {
+
+	parameter "L'apiculteur recolte le miel tous les :" var: recolte_every among: [500, 1000, 1500, 2000, 4000, 8000] category:"Ruche";
+	parameter "Miel laissé par récolte :" var: seuil_recolte among: [0, 10, 15, 30] category:"Ruche";
+	parameter "Energie obtenue par le miel :" var: qtt_energie_miel category:"Abeilles" among: [400, 500, 700, 1000];
+	parameter "Distance de perception des abeilles :" var: dist_percep category: "Abeilles" min: 50.0 max: 300.0;
+	parameter "Nombre d'abeilles :" var: nb_bees_friendly category: "Abeilles" min:5 max: 30;
+	parameter "Nombre de fleurs :" var: nb_flower_init category: "Fleurs" among: [5,10,20,40];
+	parameter "Proportion de remplissage pour avoir un bon filon" var: prop_bonplan category: "Abeilles" min: 0.5 max: 0.9 step: 0.05;
+
+	output {
+		display map background: #lightgreen{
+	
+			species ruche aspect: carre;
+			species flower aspect: cercle;
+			species bees aspect: cercle;
 			
 			//pas oublier l'aspect
 		}
-		monitor "Nb bees alive" value: length(bees); //fenetre non display, cas particulier
-		monitor "Qtt de pollen dans les fleurs" value: sum (flower collect each.qtt_pollen);
-		monitor "Qtt de pollen à la ruche" value: sum (ruche collect each.qtt_pollen);
-		monitor "charge moyenne" value: mean (bees collect (each.charge_pollen));
-		monitor "energie moyenne" value: mean (bees collect (each.energie));
-	
-		//display Comparion {
-		//	chart "nb cycle " type: series{
-		//		data "energie moyenne" value: mean (bees collect (each.energie));
-		//	
-		//	}
-		//}
-
-		
+		monitor "Nombre d'abeilles en vie" value: length(bees) refresh: every(100 #cycles); //fenetre non display, cas particulier
 	}
-	
-	
 }
+
+
+experiment BATCH type: batch repeat:2 until: (length(bees)=nb_bees_friendly-1){ //s'arrete quand la premiere abeille meurt
+	parameter "L'apiculteur recolte le miel tous les :" var: recolte_every among: [500, 1500, 4000] category:"Ruche";
+	parameter "Miel laissé par récolte :" var: seuil_recolte among: [0, 10] category:"Ruche";
+
+	method exhaustive maximize: ruche[0].revenu;
+	permanent {
+		display revenus {
+			chart "Maximiser les revenus de l'apiculteur" type: series{
+				data "Revenus moyens" value: simulations mean_of(each.ruche[0].revenu);
+				data "Revenus Max" value: simulations max_of(each.ruche[0].revenu);
+				data "Revenus min" value: simulations min_of(each.ruche[0].revenu);
+			}
+		}
+
+	}
+}
+
+experiment BATCH2 type: batch repeat:2 until: (length(bees)=nb_bees_friendly-1){ //s'arrete quand la premiere abeille meurt
+	parameter "L'apiculteur recolte le miel tous les :" var: recolte_every among: [500, 1500, 4000] category:"Ruche";
+	parameter "Miel laissé par récolte :" var: seuil_recolte among: [0, 10] category:"Ruche";
+
+	method exhaustive maximize: nb_cycle_f;
+	
+	permanent {
+		display duree_de_vie {
+			chart "Maximiser la durée de vie de toutes les abeilles" type: series{
+				data "Cycle final moyen" value: simulations mean_of(each.nb_cycle_f);
+				data "Cycle final Max" value: simulations max_of(each.nb_cycle_f);
+				data "Cycle final min" value: simulations min_of(each.nb_cycle_f);
+			}
+		
+		}
+
+	}
+}
+
+experiment BATCH3 type: batch repeat:2 until: (ruche[0].revenu > 100 or length(bees)=nb_bees_friendly-1){ //s'arrete quand la premiere abeille meurt ou que les revenus sont hauts
+	parameter "Proportion de remplissage pour avoir un bon filon" var: prop_bonplan category: "Abeilles" min: 0.5 max: 0.9 step: 0.10;
+	parameter "Nombre de fleurs :" var: nb_flower_init category: "Fleurs" among: [40,20,10];
+
+	method hill_climbing minimize: nb_cycle_f;
+	//optimum local
+	permanent {
+		display D {
+			chart "Minimiser le moment où on atteint 100 de revenu" type: series{
+				data "Cycle final moyen" value: simulations mean_of(each.nb_cycle_f);
+				data "Cycle final Max" value: simulations max_of(each.nb_cycle_f);
+				data "Cycle final min" value: simulations min_of(each.nb_cycle_f);
+			}
+		
+		}
+
+	}
+
+}
+
+
+
+
+
