@@ -1,2 +1,4 @@
 # BEES_GAMA
-Projet d'abeilles qui deviennent solitaires en GAMA
+## Demarche multi-agents
+Projet d'abeilles qui coopèrent pour récupérer des ressources dans leur environnement afin de survivre le plus longtemps possible.
+Le langage utilisé est le gaml, exécutable notamment sur la plateforme GAMA.
